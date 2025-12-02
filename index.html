@@ -397,7 +397,6 @@
           this.permissionGranted = false;
           this.permissionState = "prompt";
           this.transcript = "";
-          this.processedResultIndex = 0;
           this.interimText = "";
           this.isRecording = false;
           this.pendingStart = false;
@@ -409,22 +408,17 @@
         setupHandlers() {
           this.recognition.onresult = (event) => {
             this.resetSilenceTimer();
-            const results = event.results;
-            if (!Number.isInteger(this.processedResultIndex)) {
-              this.processedResultIndex = 0;
-            }
-            if (this.processedResultIndex > results.length) {
-              this.processedResultIndex = results.length;
-            }
+            const { resultIndex, results } = event;
             let finalChunk = "";
             let interimChunk = "";
-            for (let i = this.processedResultIndex; i < results.length; i += 1) {
+            for (let i = resultIndex; i < results.length; i += 1) {
               const result = results[i];
+              const text = result[0].transcript;
+              if (!text) continue;
               if (result.isFinal) {
-                finalChunk += `${result[0].transcript} `;
-                this.processedResultIndex = i + 1;
+                finalChunk += `${text} `;
               } else {
-                interimChunk = result[0].transcript;
+                interimChunk = text;
               }
             }
             if (finalChunk) {
@@ -438,7 +432,7 @@
             this.isRecording = true;
             this.permissionGranted = true;
             this.permissionState = "granted";
-            this.processedResultIndex = 0;
+            this.interimText = "";
             this.startSilenceTimer();
             this.onStart?.();
           };
@@ -453,7 +447,6 @@
             this.pendingStart = false;
             this.isRecording = false;
             this.clearSilenceTimer();
-            this.processedResultIndex = 0;
             if (this.transcript || this.interimText) {
               this.input.value = `${this.transcript}${this.interimText}`.trim();
             }
@@ -533,6 +526,7 @@
           try {
             await this.ensurePermission();
             this.transcript = "";
+            this.interimText = "";
             this.clearSilenceTimer();
             this.recognition.start();
           } catch (error) {
