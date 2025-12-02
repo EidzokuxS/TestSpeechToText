@@ -49,21 +49,59 @@
 
       .code-card {
         flex: 1 1 420px;
-        min-width: 320px;
-        max-width: 560px;
+        min-width: 280px;
+        max-width: 100%;
+        width: 100%;
         overflow: hidden;
       }
 
       .code-card pre {
         max-height: 360px;
-        overflow: auto;
-        background: #0f172a;
-        border-radius: 12px;
-        padding: 16px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        background: linear-gradient(135deg, #0f172a 0%, #111c3d 100%);
+        border-radius: 14px;
+        padding: 20px;
         color: #e2e8f0;
         font-family: "JetBrains Mono", "Fira Code", monospace;
-        font-size: 13px;
-        line-height: 1.5;
+        font-size: 13.5px;
+        line-height: 1.6;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+      }
+
+      .code-card pre code {
+        display: block;
+        white-space: pre-wrap;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+        tab-size: 2;
+      }
+
+      .token-keyword {
+        color: #93c5fd;
+      }
+
+      .token-class,
+      .token-const {
+        color: #fcd34d;
+      }
+
+      .token-fn {
+        color: #5eead4;
+      }
+
+      .token-string {
+        color: #fda4af;
+      }
+
+      .token-number {
+        color: #c4b5fd;
+      }
+
+      .token-comment {
+        color: rgba(226, 232, 240, 0.6);
+        font-style: italic;
       }
 
       .panel {
@@ -710,7 +748,32 @@
           enableStartOnly();
         };
 
-        els.codeBlock.textContent = VoiceInputRecorder.toString();
+        els.codeBlock.innerHTML = highlightFunctionSource(VoiceInputRecorder);
+      }
+
+      function highlightFunctionSource(fn) {
+        const raw = fn.toString().replace(/\s+$/gm, "");
+        const escaped = raw
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+
+        const withComments = escaped.replace(/(\/\/.*?$)/gm, '<span class="token-comment">$1</span>');
+        const withStrings = withComments.replace(/(["'`])(.*?)(\1)/gs, '<span class="token-string">$1$2$3</span>');
+        const withNumbers = withStrings.replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="token-number">$1</span>');
+        const withKeywords = withNumbers.replace(
+          /\b(const|let|var|class|return|if|else|for|while|try|catch|finally|async|await|throw|new|extends|super|this|function)\b/g,
+          '<span class="token-keyword">$1</span>'
+        );
+        const withConstNames = withKeywords.replace(
+          /\bVoiceInputRecorder\b/g,
+          '<span class="token-class">VoiceInputRecorder</span>'
+        );
+        const withFunctions = withConstNames.replace(
+          /(\b[a-zA-Z0-9_]+)(?=\s*\()/g,
+          '<span class="token-fn">$1</span>'
+        );
+        return withFunctions;
       }
 
       function bindEvents() {
