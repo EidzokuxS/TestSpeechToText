@@ -398,6 +398,8 @@
           this.permissionState = "prompt";
           this.transcript = "";
           this.interimText = "";
+          this.lastFinalSegment = "";
+          this.isMobileBrowser = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || "");
           this.isRecording = false;
           this.pendingStart = false;
           this.stopReason = "idle";
@@ -409,20 +411,32 @@
           this.recognition.onresult = (event) => {
             this.resetSilenceTimer();
             const { resultIndex, results } = event;
-            let finalChunk = "";
+            const finalSegments = [];
             let interimChunk = "";
             for (let i = resultIndex; i < results.length; i += 1) {
               const result = results[i];
-              const text = result[0].transcript;
+              const alternative = result[0];
+              const text = alternative?.transcript?.trim();
               if (!text) continue;
-              if (result.isFinal) {
-                finalChunk += `${text} `;
+              const confidence = alternative?.confidence;
+              const isActuallyFinal =
+                result.isFinal && (confidence === undefined || confidence > 0);
+              if (isActuallyFinal) {
+                if (text !== this.lastFinalSegment) {
+                  finalSegments.push(text);
+                  this.lastFinalSegment = text;
+                }
               } else {
-                interimChunk = text;
+                interimChunk = this.isMobileBrowser ? text : `${interimChunk}${text}`;
               }
             }
-            if (finalChunk) {
-              this.transcript += finalChunk;
+            if (finalSegments.length) {
+              const combined = finalSegments.join(" ");
+              if (this.isMobileBrowser) {
+                this.transcript = combined.trim();
+              } else {
+                this.transcript = `${this.transcript} ${combined}`.trim();
+              }
             }
             this.interimText = interimChunk;
           };
@@ -433,6 +447,7 @@
             this.permissionGranted = true;
             this.permissionState = "granted";
             this.interimText = "";
+            this.lastFinalSegment = "";
             this.startSilenceTimer();
             this.onStart?.();
           };
@@ -451,6 +466,7 @@
               this.input.value = `${this.transcript}${this.interimText}`.trim();
             }
             this.interimText = "";
+            this.lastFinalSegment = "";
             this.onStop?.(reason);
           };
 
@@ -527,6 +543,7 @@
             await this.ensurePermission();
             this.transcript = "";
             this.interimText = "";
+            this.lastFinalSegment = "";
             this.clearSilenceTimer();
             this.recognition.start();
           } catch (error) {
