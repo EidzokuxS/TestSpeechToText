@@ -1,0 +1,734 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Speech-to-Text Prototype</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+        line-height: 1.4;
+        --card-bg: #ffffff;
+        --border: rgba(0, 0, 0, 0.08);
+        --muted: #5f6368;
+        --accent: #2563eb;
+        --danger: #dc2626;
+        --success: #059669;
+        --surface: #f8fafc;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: radial-gradient(circle at top, #f1f5ff, #eef2ff 40%, #f9fafb);
+        color: #111827;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      header.app-header {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+
+      .card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 15px 25px rgba(15, 23, 42, 0.08);
+      }
+
+      .code-card {
+        flex: 1 1 420px;
+        min-width: 320px;
+        max-width: 560px;
+        overflow: hidden;
+      }
+
+      .code-card pre {
+        max-height: 360px;
+        overflow: auto;
+        background: #0f172a;
+        border-radius: 12px;
+        padding: 16px;
+        color: #e2e8f0;
+        font-family: "JetBrains Mono", "Fira Code", monospace;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .panel {
+        flex: 1 1 360px;
+        min-width: 280px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .browser-hint {
+        font-size: 14px;
+        color: var(--muted);
+        margin: 0;
+      }
+
+      main {
+        flex: 1;
+      }
+
+      .chat-panel {
+        display: grid;
+        grid-template-rows: auto auto 1fr auto auto;
+        gap: 16px;
+      }
+
+      .chat-log {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+        background: var(--surface);
+        min-height: 180px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .chat-message {
+        padding: 12px 14px;
+        border-radius: 12px;
+        max-width: 85%;
+      }
+
+      .chat-message.user {
+        margin-left: auto;
+        background: #dbeafe;
+      }
+
+      .chat-placeholder {
+        color: var(--muted);
+        text-align: center;
+      }
+
+      textarea {
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        padding: 12px;
+        resize: vertical;
+        min-height: 90px;
+        font-family: inherit;
+        font-size: 16px;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: flex-end;
+      }
+
+      button {
+        border: none;
+        border-radius: 999px;
+        padding: 10px 20px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.2s;
+      }
+
+      button:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      .primary-btn {
+        background: var(--accent);
+        color: white;
+        box-shadow: 0 10px 20px rgba(37, 99, 235, 0.25);
+      }
+
+      .secondary-btn {
+        background: #e2e8f0;
+        color: #0f172a;
+      }
+
+      .danger-btn {
+        background: var(--danger);
+        color: #fff;
+        box-shadow: 0 10px 20px rgba(220, 38, 38, 0.25);
+      }
+
+      .status-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--muted);
+      }
+
+      .status-dot.active {
+        background: var(--success);
+        box-shadow: 0 0 0 6px rgba(5, 150, 105, 0.2);
+      }
+
+      select {
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        padding: 10px 14px;
+        font-size: 15px;
+        width: 100%;
+      }
+
+      label {
+        font-weight: 600;
+        font-size: 14px;
+      }
+
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      @media (max-width: 960px) {
+        .code-card pre {
+          max-height: 260px;
+        }
+      }
+
+      @media (max-width: 640px) {
+        body {
+          padding: 12px;
+        }
+
+        .actions {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        button {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="app-header">
+      <section class="card code-card">
+        <h2>JS Speech-to-Text Reference</h2>
+        <pre><code id="code-block" class="language-js">// VoiceInputRecorder source will appear here</code></pre>
+      </section>
+
+      <section class="card panel">
+        <div class="field">
+          <label for="language-select" data-i18n="uiLanguageLabel">Язык интерфейса</label>
+          <select id="language-select"></select>
+        </div>
+        <p class="browser-hint" data-i18n="browserHint">
+          ⚠️ Web Speech API официально поддерживается в Chrome / Edge / Samsung Internet и частично в Safari 14+. Если не работает — браузер пока не поддерживает API.
+        </p>
+        <div class="field">
+          <label data-i18n="recognitionLang">Текущий язык распознавания:</label>
+          <strong id="current-lang">ru-RU</strong>
+        </div>
+      </section>
+    </header>
+
+    <main>
+      <section class="card chat-panel">
+        <h1 data-i18n="title">Голосовой чат</h1>
+        <div class="status-row">
+          <span class="status-dot" id="status-dot"></span>
+          <span id="status-text" data-i18n="statusIdle">Готово к записи</span>
+        </div>
+        <div class="chat-log" id="chat-log">
+          <div class="chat-placeholder" data-i18n="chatEmpty">Здесь появятся ваши сообщения</div>
+        </div>
+        <textarea
+          id="message-input"
+          placeholder="Скажите что-нибудь..."
+          data-i18n-placeholder="inputPlaceholder"
+        ></textarea>
+        <div class="actions">
+          <button class="primary-btn" id="start-btn" data-i18n="start">🎤 Записать</button>
+          <button class="danger-btn" id="stop-btn" disabled data-i18n="stop">
+            ⏹️ Остановить
+          </button>
+          <button class="secondary-btn" id="send-btn" data-i18n="send">Отправить</button>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const UI_LANGUAGES = {
+        ru: {
+          label: "Русский",
+          recognition: "ru-RU",
+          strings: {
+            title: "Голосовой чат",
+            uiLanguageLabel: "Язык интерфейса",
+            browserHint:
+              "⚠️ Web Speech API поддерживается в современных Chrome, Edge, Samsung Internet, а также частично Safari 14+ на iOS/macOS.",
+            recognitionLang: "Текущий язык распознавания:",
+            statusIdle: "Готово к записи",
+            statusListening: "Идёт распознавание...",
+            statusStopped: "Распознавание остановлено",
+            statusSilence: "5 секунд тишины — запись остановлена",
+            statusPermission: "Нужен доступ к микрофону",
+            statusUnsupported: "Этот браузер не поддерживает Web Speech API",
+            statusLanguageChanged: "Язык распознавания обновлён",
+            statusError: "Произошла ошибка распознавания",
+            chatEmpty: "Здесь появятся ваши сообщения",
+            inputPlaceholder: "Скажите что-нибудь...",
+            start: "🎤 Записать",
+            stop: "⏹️ Остановить",
+            send: "Отправить",
+            noteSend: "Сообщение отправлено",
+          },
+        },
+        en: {
+          label: "English",
+          recognition: "en-US",
+          strings: {
+            title: "Voice chat",
+            uiLanguageLabel: "UI language",
+            browserHint:
+              "⚠️ Web Speech API officially works in Chrome / Edge / Samsung Internet and partially Safari 14+. If it fails, the API is unavailable in this browser.",
+            recognitionLang: "Recognition language:",
+            statusIdle: "Ready to record",
+            statusListening: "Listening...",
+            statusStopped: "Recognition stopped",
+            statusSilence: "5 seconds of silence — recording stopped",
+            statusPermission: "Microphone permission is required",
+            statusUnsupported: "Your browser does not support Web Speech API",
+            statusLanguageChanged: "Recognition language updated",
+            statusError: "Speech recognition error",
+            chatEmpty: "Your messages will appear here",
+            inputPlaceholder: "Say something...",
+            start: "🎤 Start",
+            stop: "⏹️ Stop",
+            send: "Send",
+            noteSend: "Message sent",
+          },
+        },
+        de: {
+          label: "Deutsch",
+          recognition: "de-DE",
+          strings: {
+            title: "Sprachchat",
+            uiLanguageLabel: "Sprache der Oberfläche",
+            browserHint:
+              "⚠️ Web Speech API funktioniert in Chrome / Edge / Samsung Internet und teilweise in Safari 14+. Wenn es nicht läuft, fehlt die Browser-Unterstützung.",
+            recognitionLang: "Erkennungssprache:",
+            statusIdle: "Bereit zur Aufnahme",
+            statusListening: "Zuhören...",
+            statusStopped: "Erkennung gestoppt",
+            statusSilence: "5 Sekunden Stille — Aufnahme gestoppt",
+            statusPermission: "Mikrofonzugriff erforderlich",
+            statusUnsupported: "Web Speech API wird in diesem Browser nicht unterstützt",
+            statusLanguageChanged: "Erkennungssprache aktualisiert",
+            statusError: "Fehler bei der Spracherkennung",
+            chatEmpty: "Hier erscheinen deine Nachrichten",
+            inputPlaceholder: "Sag etwas...",
+            start: "🎤 Start",
+            stop: "⏹️ Stopp",
+            send: "Senden",
+            noteSend: "Nachricht gesendet",
+          },
+        },
+        es: {
+          label: "Español",
+          recognition: "es-ES",
+          strings: {
+            title: "Chat de voz",
+            uiLanguageLabel: "Idioma de la interfaz",
+            browserHint:
+              "⚠️ Web Speech API funciona en Chrome / Edge / Samsung Internet y parcialmente en Safari 14+. Si no funciona, significa que el navegador aún no soporta la API.",
+            recognitionLang: "Idioma de reconocimiento:",
+            statusIdle: "Listo para grabar",
+            statusListening: "Escuchando...",
+            statusStopped: "Reconocimiento detenido",
+            statusSilence: "5 segundos de silencio — grabación detenida",
+            statusPermission: "Se necesita acceso al micrófono",
+            statusUnsupported: "Este navegador no soporta Web Speech API",
+            statusLanguageChanged: "Idioma de reconocimiento actualizado",
+            statusError: "Error de reconocimiento",
+            chatEmpty: "Aquí aparecerán tus mensajes",
+            inputPlaceholder: "Di algo...",
+            start: "🎤 Grabar",
+            stop: "⏹️ Detener",
+            send: "Enviar",
+            noteSend: "Mensaje enviado",
+          },
+        },
+      };
+
+      class VoiceInputRecorder {
+        constructor(inputElement, { lang = "ru-RU", silenceDelay = 5000 } = {}) {
+          const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+          if (!SpeechRecognition) {
+            throw new Error("Web Speech API is not supported");
+          }
+          this.input = inputElement;
+          this.recognition = new SpeechRecognition();
+          this.recognition.lang = lang;
+          this.recognition.continuous = true;
+          this.recognition.interimResults = true;
+          this.silenceDelay = silenceDelay;
+          this.silenceTimer = null;
+          this.permissionGranted = false;
+          this.permissionState = "prompt";
+          this.transcript = "";
+          this.isRecording = false;
+          this.pendingStart = false;
+          this.stopReason = "idle";
+          this.setupHandlers();
+          this.setupPermissionWatcher();
+        }
+
+        setupHandlers() {
+          this.recognition.onresult = (event) => {
+            this.resetSilenceTimer();
+            let finalChunk = "";
+            let interimChunk = "";
+            for (let i = event.resultIndex; i < event.results.length; i += 1) {
+              const { transcript } = event.results[i][0];
+              if (event.results[i].isFinal) {
+                finalChunk += `${transcript} `;
+              } else {
+                interimChunk += transcript;
+              }
+            }
+            if (finalChunk) {
+              this.transcript += finalChunk;
+            }
+            this.input.value = `${this.transcript}${interimChunk}`.trimStart();
+          };
+
+          this.recognition.onstart = () => {
+            this.pendingStart = false;
+            this.isRecording = true;
+            this.permissionGranted = true;
+            this.permissionState = "granted";
+            this.startSilenceTimer();
+            this.onStart?.();
+          };
+
+          this.recognition.onspeechend = () => {
+            this.startSilenceTimer();
+          };
+
+          this.recognition.onend = () => {
+            const reason = this.stopReason;
+            this.stopReason = "idle";
+            this.pendingStart = false;
+            this.isRecording = false;
+            this.clearSilenceTimer();
+            this.onStop?.(reason);
+          };
+
+          this.recognition.onerror = (event) => {
+            if (event.error === "no-speech") {
+              this.startSilenceTimer();
+            }
+            if (event.error === "not-allowed") {
+              this.permissionGranted = false;
+              this.permissionState = "denied";
+              this.onPermissionError?.(event);
+            }
+            this.onError?.(event);
+          };
+        }
+
+        setupPermissionWatcher() {
+          if (!navigator.permissions?.query) {
+            return;
+          }
+          navigator.permissions
+            .query({ name: "microphone" })
+            .then((status) => {
+              this.permissionState = status.state;
+              this.permissionGranted = status.state === "granted";
+              status.onchange = () => {
+                this.permissionState = status.state;
+                this.permissionGranted = status.state === "granted";
+                if (status.state === "denied") {
+                  this.onPermissionError?.(new Error("Microphone permission denied"));
+                }
+              };
+            })
+            .catch(() => {
+              this.permissionState = "prompt";
+            });
+        }
+
+        async ensurePermission() {
+          if (this.permissionGranted) {
+            return true;
+          }
+          if (this.permissionState === "denied") {
+            const error = new Error("Microphone permission denied");
+            this.onPermissionError?.(error);
+            throw error;
+          }
+          const permissionsSupported = Boolean(navigator.permissions?.query);
+          if (!permissionsSupported && navigator.mediaDevices?.getUserMedia) {
+            try {
+              const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+              stream.getTracks().forEach((track) => track.stop());
+              this.permissionGranted = true;
+              this.permissionState = "granted";
+              return true;
+            } catch (error) {
+              this.permissionGranted = false;
+              this.permissionState = "denied";
+              this.onPermissionError?.(error);
+              throw error;
+            }
+          }
+          // When Permissions API is available we let SpeechRecognition trigger the prompt
+          // to avoid multiple confirmation dialogs.
+          return true;
+        }
+
+        async start() {
+          if (this.isRecording || this.pendingStart) {
+            return;
+          }
+          this.pendingStart = true;
+          try {
+            await this.ensurePermission();
+            this.transcript = "";
+            this.clearSilenceTimer();
+            this.recognition.start();
+          } catch (error) {
+            this.pendingStart = false;
+            throw error;
+          }
+        }
+
+        stop(reason = "manual") {
+          if (!this.isRecording && !this.pendingStart) {
+            return;
+          }
+          this.stopReason = reason;
+          this.recognition.stop();
+        }
+
+        startSilenceTimer() {
+          if (!this.isRecording && !this.pendingStart) {
+            return;
+          }
+          this.clearSilenceTimer();
+          this.silenceTimer = setTimeout(() => {
+            this.stop("silence");
+          }, this.silenceDelay);
+        }
+
+        resetSilenceTimer() {
+          this.startSilenceTimer();
+        }
+
+        clearSilenceTimer() {
+          if (this.silenceTimer) {
+            clearTimeout(this.silenceTimer);
+            this.silenceTimer = null;
+          }
+        }
+
+        setLanguage(langCode) {
+          this.recognition.lang = langCode;
+        }
+      }
+
+      const state = {
+        recorder: null,
+        currentLocale: "ru",
+      };
+
+      const els = {
+        languageSelect: document.getElementById("language-select"),
+        currentLang: document.getElementById("current-lang"),
+        statusDot: document.getElementById("status-dot"),
+        statusText: document.getElementById("status-text"),
+        chatLog: document.getElementById("chat-log"),
+        input: document.getElementById("message-input"),
+        startBtn: document.getElementById("start-btn"),
+        stopBtn: document.getElementById("stop-btn"),
+        sendBtn: document.getElementById("send-btn"),
+        codeBlock: document.getElementById("code-block"),
+      };
+
+      function populateLanguageSelect() {
+        els.languageSelect.innerHTML = Object.entries(UI_LANGUAGES)
+          .map(([code, { label }]) => `<option value="${code}">${label}</option>`)
+          .join("");
+        els.languageSelect.value = state.currentLocale;
+      }
+
+      function updateI18nTexts() {
+        const dict = UI_LANGUAGES[state.currentLocale].strings;
+        document.documentElement.lang = state.currentLocale;
+        document.querySelectorAll("[data-i18n]").forEach((node) => {
+          const key = node.dataset.i18n;
+          if (dict[key]) {
+            node.textContent = dict[key];
+          }
+        });
+        document.querySelectorAll("[data-i18n-placeholder]").forEach((node) => {
+          const key = node.dataset.i18nPlaceholder;
+          if (dict[key]) {
+            node.placeholder = dict[key];
+          }
+        });
+        els.startBtn.textContent = dict.start;
+        els.stopBtn.textContent = dict.stop;
+        els.sendBtn.textContent = dict.send;
+        els.statusText.textContent = dict.statusIdle;
+      }
+
+      function updateStatus(key) {
+        const dict = UI_LANGUAGES[state.currentLocale].strings;
+        els.statusText.textContent = dict[key] || key;
+        if (key === "statusListening") {
+          els.statusDot.classList.add("active");
+        } else {
+          els.statusDot.classList.remove("active");
+        }
+      }
+
+      function addMessage(message) {
+        const placeholder = els.chatLog.querySelector(".chat-placeholder");
+        if (placeholder) {
+          placeholder.remove();
+        }
+        const bubble = document.createElement("div");
+        bubble.className = "chat-message user";
+        bubble.textContent = message;
+        els.chatLog.appendChild(bubble);
+        els.chatLog.scrollTo({ top: els.chatLog.scrollHeight, behavior: "smooth" });
+      }
+
+      function disableControls() {
+        els.startBtn.disabled = true;
+        els.stopBtn.disabled = true;
+      }
+
+      function enableStartOnly() {
+        els.startBtn.disabled = false;
+        els.stopBtn.disabled = true;
+      }
+
+      function setRecordingState(isRecording) {
+        els.startBtn.disabled = isRecording;
+        els.stopBtn.disabled = !isRecording;
+        if (isRecording) {
+          updateStatus("statusListening");
+        } else {
+          updateStatus("statusStopped");
+        }
+      }
+
+      function initRecorder() {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+          updateStatus("statusUnsupported");
+          disableControls();
+          return;
+        }
+        state.recorder = new VoiceInputRecorder(els.input, {
+          lang: UI_LANGUAGES[state.currentLocale].recognition,
+        });
+
+        state.recorder.onStart = () => {
+          setRecordingState(true);
+        };
+
+        state.recorder.onStop = (reason) => {
+          setRecordingState(false);
+          if (reason === "silence") {
+            updateStatus("statusSilence");
+          } else if (reason === "manual") {
+            updateStatus("statusStopped");
+          } else {
+            updateStatus("statusStopped");
+          }
+        };
+
+        state.recorder.onError = () => {
+          updateStatus("statusError");
+          enableStartOnly();
+        };
+
+        state.recorder.onPermissionError = () => {
+          updateStatus("statusPermission");
+          enableStartOnly();
+        };
+
+        els.codeBlock.textContent = VoiceInputRecorder.toString();
+      }
+
+      function bindEvents() {
+        els.languageSelect.addEventListener("change", () => {
+          state.currentLocale = els.languageSelect.value;
+          const localeInfo = UI_LANGUAGES[state.currentLocale];
+          updateI18nTexts();
+          els.currentLang.textContent = localeInfo.recognition;
+          if (state.recorder) {
+            state.recorder.setLanguage(localeInfo.recognition);
+            state.recorder.stop("language-change");
+            updateStatus("statusLanguageChanged");
+          }
+        });
+
+        els.startBtn.addEventListener("click", async () => {
+          if (!state.recorder) return;
+          try {
+            await state.recorder.start();
+          } catch (error) {
+            console.error("Speech start error", error);
+            updateStatus("statusError");
+          }
+        });
+
+        els.stopBtn.addEventListener("click", () => {
+          state.recorder?.stop();
+        });
+
+        els.sendBtn.addEventListener("click", () => {
+          const text = els.input.value.trim();
+          if (!text) return;
+          addMessage(text);
+          els.input.value = "";
+          state.recorder?.stop("send");
+        });
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        populateLanguageSelect();
+        updateI18nTexts();
+        bindEvents();
+        initRecorder();
+        els.currentLang.textContent = UI_LANGUAGES[state.currentLocale].recognition;
+      });
+    </script>
+  </body>
+</html>
