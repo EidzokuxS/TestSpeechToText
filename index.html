@@ -398,6 +398,7 @@
           this.permissionState = "prompt";
           this.transcript = "";
           this.processedResultIndex = 0;
+          this.interimText = "";
           this.isRecording = false;
           this.pendingStart = false;
           this.stopReason = "idle";
@@ -416,19 +417,20 @@
               this.processedResultIndex = results.length;
             }
             let finalChunk = "";
+            let interimChunk = "";
             for (let i = this.processedResultIndex; i < results.length; i += 1) {
               const result = results[i];
               if (result.isFinal) {
                 finalChunk += `${result[0].transcript} `;
                 this.processedResultIndex = i + 1;
+              } else {
+                interimChunk = result[0].transcript;
               }
             }
             if (finalChunk) {
               this.transcript += finalChunk;
             }
-            const lastResult = results[results.length - 1];
-            const interimChunk = lastResult?.isFinal ? "" : lastResult[0].transcript;
-            this.input.value = `${this.transcript}${interimChunk ?? ""}`.trimStart();
+            this.interimText = interimChunk;
           };
 
           this.recognition.onstart = () => {
@@ -452,6 +454,10 @@
             this.isRecording = false;
             this.clearSilenceTimer();
             this.processedResultIndex = 0;
+            if (this.transcript || this.interimText) {
+              this.input.value = `${this.transcript}${this.interimText}`.trim();
+            }
+            this.interimText = "";
             this.onStop?.(reason);
           };
 
